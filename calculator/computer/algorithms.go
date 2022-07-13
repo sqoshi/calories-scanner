@@ -7,8 +7,17 @@ import (
 )
 
 func ComputeCalories(foodList types.FoodList) int {
-	rows, err := db.Connection.Query("SELECT * FROM food")
+	//rows, err := db.Connection.Query("SELECT table_name,table_schema FROM information_schema.tables;")
+	rows, err := db.Connection.Query("SELECT name,category FROM foodschema.food;")
 	log.Info(err)
-	log.Info(rows)
+	for rows.Next() {
+		var table string
+		var schema string
+		err = rows.Scan(&table, &schema)
+		if err != nil {
+			log.Warning(err)
+		}
+		log.Println(table, schema)
+	}
 	return 1
 }
