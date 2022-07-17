@@ -3,11 +3,24 @@ package main
 import (
 	"calculator/api"
 	"calculator/database"
+	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
 )
 
 var wg sync.WaitGroup
+
+func init() {
+	lvl, ok := os.LookupEnv("LOG_LEVEL")
+	if !ok {
+		lvl = "debug"
+	}
+	ll, err := logrus.ParseLevel(lvl)
+	if err != nil {
+		ll = logrus.DebugLevel
+	}
+	logrus.SetLevel(ll)
+}
 
 func main() {
 	os.Setenv("DB_NAME", "fooddatabase")

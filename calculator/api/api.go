@@ -26,7 +26,12 @@ func getDataFromRequest(ctx *gin.Context) {
 	err := json.NewDecoder(ctx.Request.Body).Decode(&foodList)
 	if err == nil {
 		log.Println(foodList)
-		ctx.IndentedJSON(http.StatusOK, computer.ComputeCalories(foodList))
+		calories, dbErr := computer.ComputeCalories(foodList)
+		if dbErr != nil {
+			ctx.IndentedJSON(http.StatusInternalServerError, gin.H{"error": dbErr})
+			return
+		}
+		ctx.IndentedJSON(http.StatusOK, calories)
 		return
 	}
 	ctx.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Could not decode request."})
