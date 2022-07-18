@@ -21,20 +21,47 @@ func GetEnvOrFallback(key, fallback string) string {
 	return value
 }
 
+type ComputeResult struct {
+	CaloriesSum  float64            `json:"CaloriesSum"`
+	CaloriesList map[string]float64 `json:"CaloriesList"`
+	Incomplete   bool               `json:"Incomplete"`
+}
+
+type Response struct {
+	Error          error          `json:"Error"`
+	MissingDataFor []string       `json:"MissingDataFor"`
+	Result         *ComputeResult `json:"Result"`
+}
+
+func computeCaloriesSum(caloriesList map[string]float64) float64 {
+	var caloriesSum float64
+	for _, c := range caloriesList {
+		caloriesSum += c
+	}
+	return caloriesSum
+}
+
+func NewResponse(err error, missingItems []string, caloriesList map[string]float64) Response {
+	return Response{err, missingItems, &ComputeResult{computeCaloriesSum(caloriesList), caloriesList, len(missingItems) != 0}}
+}
+
 func getDataFromRequest(ctx *gin.Context) {
 	var foodList types.FoodList
 	err := json.NewDecoder(ctx.Request.Body).Decode(&foodList)
 	if err == nil {
-		log.Println(foodList)
-		calories, dbErr := computer.ComputeCalories(foodList)
+		availableComputedCalories, missingDataFoods, dbErr := computer.ComputeCalories(foodList)
 		if dbErr != nil {
-			ctx.IndentedJSON(http.StatusInternalServerError, gin.H{"error": dbErr})
+			if dbErr == computer.MissingDataError {
+				ctx.IndentedJSON(http.StatusConflict, NewResponse(err, missingDataFoods, availableComputedCalories))
+				return
+			}
+			ctx.IndentedJSON(http.StatusBadRequest, NewResponse(err, missingDataFoods, availableComputedCalories))
 			return
 		}
-		ctx.IndentedJSON(http.StatusOK, calories)
+		ctx.IndentedJSON(http.StatusOK, NewResponse(err, missingDataFoods, availableComputedCalories))
 		return
 	}
-	ctx.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Could not decode request."})
+	ctx.IndentedJSON(http.StatusBadRequest, gin.H{"Error": "Could not decode request."})
 }
 
 // RunAPI deploys api with endpoints

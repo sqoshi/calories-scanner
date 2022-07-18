@@ -4,11 +4,12 @@ import (
 	db "calculator/database"
 	"calculator/types"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 )
+
+var MissingDataError = fmt.Errorf("missing data for some of inputed foods")
 
 func getDistinctNames(foodList types.FoodList) []string {
 	visited := map[string]bool{}
@@ -59,44 +60,26 @@ func countAvailableCalories(foodList types.FoodList, caloriesMap map[string]floa
 	return countedCalories, missingDataFoods
 }
 
-func ComputeCalories(foodList types.FoodList) (float64, error) {
-
+func ComputeCalories(foodList types.FoodList) (map[string]float64, []string, error) {
+	var countedCalories map[string]float64
+	var missingDataFoods []string
 	rows, err := db.Connection.Query(
 		"SELECT DISTINCT name,kilocalories FROM foodschema.food WHERE name = ANY($1);",
 		pq.Array(getDistinctNames(foodList)))
 	if err != nil {
-		return -1, err
+		return countedCalories, missingDataFoods, err
 	}
 
 	foundCaloriesMap, err := rowsToMap(rows)
 	if err != nil {
-		return -1, err
+		return countedCalories, missingDataFoods, err
 	}
 
-	countedCalories, missingDataFoods := countAvailableCalories(foodList, foundCaloriesMap)
-
-	var caloriesSum float64
-	for _, c := range countedCalories {
-		caloriesSum += c
-	}
-
-	log.Println(missingDataFoods)
-	log.Println(countedCalories)
-	log.Println(caloriesSum)
+	countedCalories, missingDataFoods = countAvailableCalories(foodList, foundCaloriesMap)
 
 	if len(missingDataFoods) == 0 {
-		return caloriesSum, nil
+		return countedCalories, missingDataFoods, err
 	}
 
-	return caloriesSum, fmt.Errorf("missing data for some of inputed foods")
-}
-
-func buildResponse(err error, sum float64, missingDataList []string, countedCaloriesMap map[string]float64) ([]byte, error) {
-	map1 := map[string]any{
-		"errors":         err,
-		"sum":            sum,
-		"missingDataFor": missingDataList,
-		"details":        countedCaloriesMap,
-	}
-	return json.Marshal(map1)
+	return countedCalories, missingDataFoods, MissingDataError
 }
