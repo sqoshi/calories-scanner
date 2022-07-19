@@ -19,11 +19,20 @@ GO_MOD_DIR ?= $(shell find . -name "go.mod" ! -path "./.go/*" -exec dirname {} \
 		help
 
 # Make goals
-api-run:  ## Runs container with all needed dependencies
+frontend-run:  ## Runs frontend
+	cd frontend && yarn serve
+
+backend-run:  ## Runs compose
+	docker-compose -f docker-compose.yml down --volumes --remove-orphans && docker-compose -f docker-compose.yml up --build
+
+api-run-local:  ## Runs container with all needed dependencies
 	cd ${GO_MOD_DIR} && go run .
 
 db-run:  ## Runs container with database
-	docker-compose -f docker-compose.yml down --volumes --remove-orphans && docker-compose -f docker-compose.yml up --build db
+	docker-compose -f docker-compose.yml down --volumes --remove-orphans db && docker-compose -f docker-compose.yml up --build db
+
+api-run:  ## Runs container with database
+	docker-compose -f docker-compose.yml down --volumes --remove-orphans api && docker-compose -f docker-compose.yml up --build api
 
 db-container-exec:  ## Enters database container
 	docker exec -it calories-scanner_db_1 /bin/bash

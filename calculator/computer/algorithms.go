@@ -63,14 +63,21 @@ func countAvailableCalories(foodList types.FoodList, caloriesMap map[string]floa
 func ComputeCalories(foodList types.FoodList) (map[string]float64, []string, error) {
 	var countedCalories map[string]float64
 	var missingDataFoods []string
-	rows, err := db.Connection.Query(
+	var err error
+	var rows *sql.Rows
+	log.Debugln("ComputeCalories.foodList", foodList)
+	defer log.Debugln("ComputeCalories.counterCalories", countedCalories)
+	defer log.Debugln("ComputeCalories.err", err)
+	rows, err = db.Connection.Query(
 		"SELECT DISTINCT name,kilocalories FROM foodschema.food WHERE name = ANY($1);",
 		pq.Array(getDistinctNames(foodList)))
 	if err != nil {
+		log.Warningln("dbErr", err)
 		return countedCalories, missingDataFoods, err
 	}
 
 	foundCaloriesMap, err := rowsToMap(rows)
+	log.Debugln("Calories map from db", foundCaloriesMap)
 	if err != nil {
 		return countedCalories, missingDataFoods, err
 	}

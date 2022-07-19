@@ -1,24 +1,34 @@
 services:
   db:
+    hostname: db
     build:
       context: ./database
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5433:5432"
+      - "5432:5432"
+    networks:
+      default:
+
   api:
+    hostname: api
     build:
       context: ./calculator
     ports:
       - "8080:8080"
     environment:
       DB_HOST: db
-      DB_PORT: 5433
+      DB_PORT: 5432
       DB_NAME: fooddatabase
       DB_USR: postgres
       DB_PWD: postgres
     depends_on:
       - db
+    networks:
+      default:
 volumes:
   pgdata:
+
+networks:
+  default:

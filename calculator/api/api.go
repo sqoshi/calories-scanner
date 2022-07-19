@@ -5,6 +5,7 @@ import (
 	"calculator/types"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -42,20 +43,23 @@ func computeCaloriesSum(caloriesList map[string]float64) float64 {
 }
 
 func NewResponse(err error, missingItems []string, caloriesList map[string]float64) Response {
+	log.Debugln("caloriesList", caloriesList)
 	return Response{err, missingItems, &ComputeResult{computeCaloriesSum(caloriesList), caloriesList, len(missingItems) != 0}}
 }
 
 func getDataFromRequest(ctx *gin.Context) {
 	var foodList types.FoodList
 	err := json.NewDecoder(ctx.Request.Body).Decode(&foodList)
+	log.Debugln("Request food list: ", foodList)
+	defer log.Debugln("Error: ", err)
 	if err == nil {
 		availableComputedCalories, missingDataFoods, dbErr := computer.ComputeCalories(foodList)
 		if dbErr != nil {
 			if dbErr == computer.MissingDataError {
-				ctx.IndentedJSON(http.StatusConflict, NewResponse(err, missingDataFoods, availableComputedCalories))
+				ctx.IndentedJSON(http.StatusOK, NewResponse(dbErr, missingDataFoods, availableComputedCalories))
 				return
 			}
-			ctx.IndentedJSON(http.StatusBadRequest, NewResponse(err, missingDataFoods, availableComputedCalories))
+			ctx.IndentedJSON(http.StatusOK, NewResponse(err, missingDataFoods, availableComputedCalories))
 			return
 		}
 		ctx.IndentedJSON(http.StatusOK, NewResponse(err, missingDataFoods, availableComputedCalories))
@@ -68,6 +72,7 @@ func getDataFromRequest(ctx *gin.Context) {
 func RunAPI(wg *sync.WaitGroup) {
 	defer wg.Done()
 	router := gin.Default()
+	router.Use(cors.Default())
 	router.POST("/compute-calories", getDataFromRequest)
 	addr := fmt.Sprintf("%s:%s",
 		GetEnvOrFallback("DEPLOY_HOST", "0.0.0.0"),
