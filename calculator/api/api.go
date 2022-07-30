@@ -2,6 +2,7 @@ package api
 
 import (
 	"calculator/computer"
+	"calculator/translator"
 	"calculator/types"
 	"encoding/json"
 	"fmt"
@@ -47,11 +48,11 @@ func NewResponse(err error, missingItems []string, caloriesList map[string]float
 	return Response{err, missingItems, &ComputeResult{computeCaloriesSum(caloriesList), caloriesList, len(missingItems) != 0}}
 }
 
-func getDataFromRequest(ctx *gin.Context) {
+func HandleCaloriesRequest(ctx *gin.Context) {
 	var foodList types.FoodList
 	err := json.NewDecoder(ctx.Request.Body).Decode(&foodList)
 	log.Debugln("Request food list: ", foodList)
-	defer log.Debugln("Error: ", err)
+	translator.TranslateFoodNamesToEnglish(foodList)
 	if err == nil {
 		availableComputedCalories, missingDataFoods, dbErr := computer.ComputeCalories(foodList)
 		if dbErr != nil {
@@ -73,7 +74,7 @@ func RunAPI(wg *sync.WaitGroup) {
 	defer wg.Done()
 	router := gin.Default()
 	router.Use(cors.Default())
-	router.POST("/compute-calories", getDataFromRequest)
+	router.POST("/compute-calories", HandleCaloriesRequest)
 	addr := fmt.Sprintf("%s:%s",
 		GetEnvOrFallback("DEPLOY_HOST", "0.0.0.0"),
 		GetEnvOrFallback("DEPLOY_PORT", "8080"))
